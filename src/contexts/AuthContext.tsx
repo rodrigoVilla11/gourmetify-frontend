@@ -13,6 +13,7 @@ export type User = {
 type AuthContextType = {
   user: User;
   setUser: (user: User) => void;
+  logout: () => void;
 };
 
 const defaultUser: User = {
@@ -32,8 +33,12 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>(defaultUser);
 
+  const logout = () => {
+    setUser(defaultUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, setUser }}>
+    <AuthContext.Provider value={{ user, setUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

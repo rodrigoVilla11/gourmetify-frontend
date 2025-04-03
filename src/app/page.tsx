@@ -1,97 +1,199 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { mockUsers, useAuth } from "@/contexts/AuthContext"
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
+import Link from "next/link";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Line,
+  LineChart
+} from "recharts";
+import { UserMenu } from "@/components/ui/UserMenu";
 
 export default function Home() {
-  const { user, setUser } = useAuth()
+  const { user } = useAuth();
 
-  const modules = [
-    {
-      title: "Manage Products",
-      href: "/products",
-      description: "Create, edit and organize your menu.",
-      icon: "🍽️",
-    },
-    {
-      title: "Sales",
-      href: "/sales",
-      description: "Register and track all sales activity.",
-      icon: "💰",
-    },
-    {
-      title: "Dashboard",
-      href: "/dashboard",
-      description: "View insights, KPIs and reports.",
-      icon: "📊",
-    },
-    {
-      title: "Cash Register",
-      href: "/cash",
-      description: "Control daily cash flow, incomes and expenses.",
-      icon: "💵",
-    },
-    {
-      title: "Cash History",
-      href: "/cash/history",
-      description: "Access previous sessions and audits.",
-      icon: "📜",
-    },
-  ]
+  const ultimos7Dias = [
+    { dia: "Lun", monto: 3200 , ventas: 32 },
+    { dia: "Mar", monto: 4500, ventas: 45  },
+    { dia: "Mié", monto: 3700 , ventas: 37 },
+    { dia: "Jue", monto: 5800, ventas: 58  },
+    { dia: "Vie", monto: 7200, ventas: 72  },
+    { dia: "Sáb", monto: 9500 , ventas: 95 },
+    { dia: "Dom", monto: 10600, ventas: 61  },
+  ];
 
+  const productos = [
+    { nombre: "Hamburguesa Doble", vendidos: 42, total: 12600 },
+    { nombre: "Wrap de Pollo", vendidos: 27, total: 5750 },
+  ];
+
+  const actividad = [
+    { icono: "🟢", texto: "Pedro cerró caja", tiempo: "hace 2h" },
+    {
+      icono: "💵",
+      texto: "Carla registró una venta de $4.200",
+      tiempo: "hace 3h",
+    },
+    {
+      icono: "📦",
+      texto: "Se repuso stock de Franui Chocolate",
+      tiempo: "hace 5h",
+    },
+    { icono: "🧑‍💻", texto: "Ana editó un usuario", tiempo: "ayer" },
+  ];
+
+  const stockBajo = [
+    { nombre: "Coca-Cola 1.5L 🥤", cantidad: 2 },
+    { nombre: "Empanada Veggie 🥟", cantidad: 4 },
+  ];
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] text-center space-y-10 px-4 bg-background">
-      <div className="flex flex-col items-center space-y-4 mb-4">
-        <div className="w-16 h-16 mb-2">
-          <svg viewBox="0 0 100 100" className="w-full h-full">
-            <g fill="#144336">
-              <path d="M50 10C27.9 10 10 27.9 10 50s17.9 40 40 40 40-17.9 40-40S72.1 10 50 10zm0 70c-16.5 0-30-13.5-30-30s13.5-30 30-30 30 13.5 30 30-13.5 30-30 30z" />
-              <path d="M65 40H35c-2.8 0-5 2.2-5 5v10c0 2.8 2.2 5 5 5h30c2.8 0 5-2.2 5-5V45c0-2.8-2.2-5-5-5zm-5 15H40V45h20v10z" />
-            </g>
-          </svg>
+    <div className="flex flex-col gap-6 p-4 md:p-8">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-primary">
+          Inicio
+        </h1>
+        <div className="flex items-center gap-3">
+          <UserMenu />
+          <div className="w-8 h-8 rounded-full bg-gray-300" />
         </div>
-        <h1 className="text-5xl font-display font-extrabold text-primary tracking-tight">GOURMETIFY</h1>
-        <p className="text-muted max-w-xl text-lg">La gestión de tu restaurante, más simple que nunca.</p>
       </div>
 
-      <div className="bg-surface shadow-card px-6 py-5 rounded-2xl text-left w-full max-w-xs border border-gray-200">
-        <label className="block text-sm text-primary font-medium mb-2">Logged in as:</label>
-        <select
-          value={user.name}
-          onChange={(e) => {
-            const selected = e.target.value
-            setUser(mockUsers[selected])
-          }}
-          className="w-full border border-accent bg-surface px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-primary focus:outline-none transition-all"
+      {/* Search bar */}
+      <Input placeholder="🔍 Buscar..." className="w-full max-w-md" />
+
+      {/* Dashboard quick actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card title="💲 Total vendido hoy">
+          <h2 className="text-3xl font-bold text-primary">$15.240</h2>
+        </Card>
+
+        <Card title="🧾 Caja">
+          <h2 className="text-3xl font-bold text-primary">$100</h2>
+        </Card>
+
+        <Card title="📄 Ticket promedio">
+          <h2 className="text-3xl font-bold text-primary">$1.090</h2>
+        </Card>
+        <Card
+          title="Gestión de Usuarios"
+          footer={
+            <Link
+              href="/users"
+              className="text-sm text-primary font-medium hover:underline"
+            >
+              Ver usuarios
+            </Link>
+          }
         >
-          <option>Admin</option>
-          <option>Carla</option>
-          <option>Pedro</option>
-        </select>
+          <p className="text-xl font-bold text-primary">3 usuarios activos</p>
+        </Card>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mt-4 w-full">
-        {modules.map((mod) => (
-          <Link
-            key={mod.href}
-            href={mod.href}
-            className="bg-surface p-6 rounded-2xl shadow-card hover:shadow-strong transition-all duration-300 text-left border border-gray-200 hover:border-green-900 group"
-          >
-            <div className="flex items-start mb-3">
-              <span className="text-2xl mr-3">{mod.icon}</span>
-              <h2 className="text-xl font-semibold text-primary group-hover:text-primary mb-1 font-display">
-                {mod.title}
-              </h2>
-            </div>
-            <p className="text-sm text-muted">{mod.description}</p>
-          </Link>
-        ))}
+      {/* Report preview */}
+      <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card title="Ventas por día (últimos 7 días)">
+          <div className="w-full min-h-[260px]">
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={ultimos7Dias}>
+                <XAxis dataKey="dia" stroke="#888" />
+                <YAxis stroke="#888" />
+                <Tooltip cursor={{ fill: "#f3f4f6" }} />
+                <Bar dataKey="ventas" fill="#144336" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        <Card title="📈 Últimos 7 días">
+          <div className="w-full min-h-[260px]">
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={ultimos7Dias}>
+                <XAxis dataKey="dia" stroke="#888" />
+                <YAxis stroke="#888" />
+                <Tooltip cursor={{ fill: "#f3f4f6" }} />
+                <Line dataKey="monto" stroke="#144336" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
       </div>
 
-      <footer className="text-sm text-muted mt-12 pb-6">
-        <p>© 2025 GOURMETIFY - Your complete gastronomy management platform</p>
-      </footer>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card title="Más vendidos en cantidad">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-muted">
+                <th className="text-left font-medium">Producto</th>
+                <th className="text-right font-medium">Vendidos</th>
+              </tr>
+            </thead>
+            <tbody>
+              {productos.map((prod, i) => (
+                <tr key={i} className="border-t">
+                  <td className="py-2 text-gray-800">{prod.nombre}</td>
+                  <td className="py-2 text-right">{prod.vendidos}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+
+        <Card title="Más vendidos en $">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-muted">
+                <th className="text-left font-medium">Vendidos</th>
+                <th className="text-right font-medium">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {productos.map((prod, i) => (
+                <tr key={i} className="border-t">
+                  <td className="py-2 text-gray-800">{prod.nombre}</td>
+                  <td className="py-2 text-right">${prod.total.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      </div>
+
+      <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card title="Actividad reciente">
+          <ul className="divide-y divide-gray-100">
+            {actividad.map((item, i) => (
+              <li key={i} className="flex justify-between py-2 text-sm">
+                <span className="text-gray-800">
+                  {item.icono} {item.texto}
+                </span>
+                <span className="text-muted text-xs">{item.tiempo}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+
+        <Card title="Productos con stock bajo">
+          <ul className="list-disc ml-5 space-y-1 text-sm text-red-700">
+            {stockBajo.map((prod, i) => (
+              <li key={i}>
+                {prod.nombre} — quedan {prod.cantidad} unidades
+                <Button size="sm" variant="secondary" className="ml-4">
+                  Reponer
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </div>
     </div>
-  )
+  );
 }
-

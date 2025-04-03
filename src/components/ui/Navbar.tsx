@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { Menu, X } from "lucide-react"
 
-export function Navbar() {
+export function Sidebar() {
   const pathname = usePathname()
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const navItems = [
     { name: "Home", href: "/" },
@@ -19,74 +19,47 @@ export function Navbar() {
   ]
 
   return (
-    <nav className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sticky top-0 z-10">
-      <div className="max-w-7xl mx-auto flex justify-between items-center">
-        {/* Logo and Brand */}
-        <div className="flex items-center">
-          <div className="w-8 h-8 mr-2">
-            <svg viewBox="0 0 100 100" className="w-full h-full">
-              <g fill="#144336">
-                <path d="M50 10C27.9 10 10 27.9 10 50s17.9 40 40 40 40-17.9 40-40S72.1 10 50 10zm0 70c-16.5 0-30-13.5-30-30s13.5-30 30-30 30 13.5 30 30-13.5 30-30 30z" />
-                <path d="M65 40H35c-2.8 0-5 2.2-5 5v10c0 2.8 2.2 5 5 5h30c2.8 0 5-2.2 5-5V45c0-2.8-2.2-5-5-5zm-5 15H40V45h20v10z" />
-              </g>
-            </svg>
+    <>
+      {/* Mobile toggle button */}
+      <button
+        className="md:hidden fixed top-4 left-4 z-20 text-gray-700 hover:text-primary focus:outline-none"
+        onClick={() => setMobileOpen(!mobileOpen)}
+      >
+        {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+      </button>
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed top-0 left-0 h-full w-64 bg-[url('/FONDO%20TEXTURA%20VERDE-BLANCO%20MAS%20ESPACIO.png')] border-r border-gray-200 shadow-sm z-10 transition-transform duration-300 ease-in-out 
+        ${mobileOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
+      >
+        <div className="flex flex-col items-center justify-center gap-3 px-6 pb-8">
+          <div className="w-50 h-22">
+            <img src="/LogoGourmetifyBlancoSinFondo.png" alt="Logo-Gourmetify" />
           </div>
-          <h1 className="text-xl font-display font-bold text-primary tracking-tight">GOURMETIFY</h1>
         </div>
 
-        {/* Desktop Navigation */}
-        <ul className="hidden md:flex gap-1 text-sm font-medium">
+        <nav className="flex flex-col gap-3 mt-4 px-6 text-sm font-medium">
           {navItems.map((item) => {
             const isActive = pathname === item.href
             return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`px-3 py-2 rounded-lg transition-colors duration-200 ${
-                    isActive ? "bg-primary text-white" : "text-gray-700 hover:bg-gray-100 hover:text-primary"
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`px-4 py-3 rounded-lg transition-colors duration-200 text-left w-full text-sm font-semibold tracking-tight
+                  ${
+                    isActive
+                      ? "bg-white text-primary"
+                      : "text-white hover:bg-white/10 hover:text-white"
                   }`}
-                >
-                  {item.name}
-                </Link>
-              </li>
+                onClick={() => setMobileOpen(false)}
+              >
+                {item.name}
+              </Link>
             )
           })}
-        </ul>
-
-        {/* Mobile Menu Button */}
-        <button
-          className="md:hidden text-gray-700 hover:text-primary focus:outline-none"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="Toggle menu"
-        >
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-      </div>
-
-      {/* Mobile Navigation */}
-      {mobileMenuOpen && (
-        <div className="md:hidden pt-2 pb-4 px-2">
-          <ul className="flex flex-col gap-1 text-sm font-medium">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={`block px-3 py-2.5 rounded-lg transition-colors duration-200 ${
-                      isActive ? "bg-primary text-white" : "text-gray-700 hover:bg-gray-100 hover:text-primary"
-                    }`}
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    {item.name}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-      )}
-    </nav>
+        </nav>
+      </aside>
+    </>
   )
 }
-
