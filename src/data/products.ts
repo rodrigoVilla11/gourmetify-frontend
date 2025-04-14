@@ -1,3 +1,14 @@
+// types/Product.ts
+export type Product = {
+  id: number;
+  name: string;
+  categoryId: number;
+  categoryName?: string; // opcional si ya viene resuelto
+  price: number;
+  image: string;
+  stock: number;
+};
+
 export const products = [
     {
       id: 1,

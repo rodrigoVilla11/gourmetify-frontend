@@ -1,60 +1,58 @@
+// ✅ /app/dashboard/page.tsx
 "use client";
 
-import { KPIBox } from "@/components/ui/KPIBox";
+import { useMemo, useState } from "react";
 import { salesHistory } from "@/data/salesHistory";
-import { useMemo, useState, useEffect } from "react";
-import { SalesByShiftChart } from "@/components/dashboard/SalesByShiftChart";
-import { TopItems } from "@/components/dashboard/TopItems";
 import { products } from "@/data/products";
 import { initialCombos } from "@/data/combos";
-import { SalesByDayChart } from "@/components/dashboard/SalesByDayChart";
+import { DashboardFilters } from "@/components/dashboard/DashboardFilters";
+import { KPICards } from "@/components/dashboard/KPICards";
+import { SalesByUserChart } from "@/components/dashboard/SalesByUserChart";
+import { TopProducts } from "@/components/dashboard/TopProducts";
+import { TopCombos } from "@/components/dashboard/TopCombos";
+import { SalesEvolutionChart } from "@/components/dashboard/SalesEvolutionChart";
+import { SalesByShiftChart } from "@/components/dashboard/SalesByShiftCard";
 
 export default function DashboardPage() {
-  const [range, setRange] = useState<"all" | "today" | "last7" | "month">("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const now = new Date();
-
-  useEffect(() => {
-    setStartDate("");
-    setEndDate("");
-  }, [range]);
+  const [filters, setFilters] = useState({
+    range: "all",
+    startDate: "",
+    endDate: "",
+    shift: "",
+    responsible: "",
+  });
 
   const filteredSales = useMemo(() => {
     return salesHistory.filter((s) => {
-      const saleDate = new Date(s.date);
-      const dateStr = saleDate.toISOString().split("T")[0];
+      const date = new Date(s.date);
+      const dateStr = date.toISOString().split("T")[0];
+      const todayStr = new Date().toISOString().split("T")[0];
 
-      if (startDate || endDate) {
-        const afterStart = !startDate || dateStr >= startDate;
-        const beforeEnd = !endDate || dateStr <= endDate;
-        return afterStart && beforeEnd;
-      }
+      const inDateRange =
+        filters.range === "today"
+          ? dateStr === todayStr
+          : filters.range === "last7"
+          ? date >= new Date(new Date().setDate(new Date().getDate() - 7))
+          : filters.range === "month"
+          ? date.getMonth() === new Date().getMonth()
+          : filters.range === "custom"
+          ? (!filters.startDate || dateStr >= filters.startDate) &&
+            (!filters.endDate || dateStr <= filters.endDate)
+          : true;
 
-      if (range === "today") {
-        return saleDate.toDateString() === now.toDateString();
-      }
+      const matchShift = filters.shift ? s.shift === filters.shift : true;
+      const matchResp = filters.responsible
+        ? s.responsible === filters.responsible
+        : true;
 
-      if (range === "last7") {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(now.getDate() - 7);
-        return saleDate >= sevenDaysAgo;
-      }
-
-      if (range === "month") {
-        return (
-          saleDate.getMonth() === now.getMonth() &&
-          saleDate.getFullYear() === now.getFullYear()
-        );
-      }
-
-      return true;
+      return inDateRange && matchShift && matchResp;
     });
-  }, [startDate, endDate, range]);
+  }, [filters]);
 
-  const totalSales = useMemo(() => {
-    return filteredSales.reduce((sum, sale) => sum + sale.total, 0);
-  }, [filteredSales]);
+  const totalSales = useMemo(
+    () => filteredSales.reduce((sum, s) => sum + s.total, 0),
+    [filteredSales]
+  );
 
   const averageTicket = useMemo(() => {
     return filteredSales.length
@@ -63,24 +61,29 @@ export default function DashboardPage() {
   }, [totalSales, filteredSales.length]);
 
   const salesByUser = useMemo(() => {
-    const count: Record<string, number> = {};
+    const result: Record<string, number> = {};
     filteredSales.forEach((s) => {
-      count[s.responsible] = (count[s.responsible] || 0) + s.total;
+      result[s.responsible] = (result[s.responsible] || 0) + s.total;
     });
-    return count;
+    return result;
   }, [filteredSales]);
 
   const salesByShift = useMemo(() => {
-    const count: Record<string, number> = {};
+    const result: Record<string, number> = {};
     filteredSales.forEach((s) => {
       const shift = s.shift || "unknown";
-      count[shift] = (count[shift] || 0) + s.total;
+      result[shift] = (result[shift] || 0) + s.total;
     });
-    return count;
+    return result;
   }, [filteredSales]);
 
   const shiftChartData = Object.entries(salesByShift).map(([shift, total]) => ({
     shift,
+    total,
+  }));
+
+  const userChartData = Object.entries(salesByUser).map(([user, total]) => ({
+    user,
     total,
   }));
 
@@ -120,56 +123,32 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 p-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="flex gap-2 items-center text-sm">
-          <label>
-            From:
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="ml-1 border rounded px-2 py-1"
-            />
-          </label>
-          <label>
-            To:
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="ml-1 border rounded px-2 py-1"
-            />
-          </label>
-        </div>
-        <select
-          value={range}
-          onChange={(e) => setRange(e.target.value as any)}
-          className="border rounded px-3 py-1 text-sm"
-        >
-          <option value="all">All Time</option>
-          <option value="today">Today</option>
-          <option value="last7">Last 7 Days</option>
-          <option value="month">This Month</option>
-        </select>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPIBox label="Total Sold" value={`$${totalSales}`} />
-        <KPIBox label="Avg. Ticket" value={`$${averageTicket}`} />
-        <KPIBox label="Sales by Users" value="" details={salesByUser} />
-        <KPIBox label="Sales by Shift" value="" details={salesByShift} />
-      </div>
+      <DashboardFilters value={filters} onChange={setFilters} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <KPICards
+        totalSales={totalSales}
+        averageTicket={Number(averageTicket)}
+        salesByUser={salesByUser}
+        salesByShift={salesByShift}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SalesByUserChart data={userChartData} />
         <SalesByShiftChart data={shiftChartData} />
-        <TopItems title="Top Products" items={productQuantities} />
-        <TopItems title="Top Combos" items={comboQuantities} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TopProducts items={productQuantities} />
+        <TopCombos items={comboQuantities} />
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        <SalesByDayChart data={salesByDay} />
+        <SalesEvolutionChart data={salesByDay} />
       </div>
     </div>
   );

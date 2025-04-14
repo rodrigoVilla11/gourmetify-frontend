@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/Dialog";
+import { ArrowDown, ArrowUp, AlertTriangle } from "lucide-react";
 
 export type Ingredient = {
   id: number;
@@ -21,12 +22,19 @@ export type Ingredient = {
   activo: boolean;
 };
 
+type SortKey = keyof Pick<
+  Ingredient,
+  "nombre" | "stockActual" | "precioUnidad"
+>;
+
 export default function IngredientsPage() {
   const [search, setSearch] = useState("");
   const [proveedorFiltro, setProveedorFiltro] = useState<string>("");
-
   const [modalOpen, setModalOpen] = useState(false);
   const [editIngredient, setEditIngredient] = useState<Ingredient | null>(null);
+
+  const [sortBy, setSortBy] = useState<SortKey>("nombre");
+  const [sortAsc, setSortAsc] = useState(true);
 
   const [ingredientes, setIngredientes] = useState<Ingredient[]>([
     {
@@ -44,8 +52,8 @@ export default function IngredientsPage() {
       nombre: "Carne",
       unidad: "g",
       proveedor: "Proveedor B",
-      stockActual: 20_000,
-      stockMinimo: 5_000,
+      stockActual: 2000,
+      stockMinimo: 5000,
       precioUnidad: 0.9,
       activo: true,
     },
@@ -54,10 +62,10 @@ export default function IngredientsPage() {
       nombre: "Lechuga",
       unidad: "hoja",
       proveedor: "Proveedor A",
-      stockActual: 100,
+      stockActual: 20,
       stockMinimo: 30,
       precioUnidad: 15,
-      activo: true,
+      activo: false,
     },
   ]);
 
@@ -106,27 +114,52 @@ export default function IngredientsPage() {
     setModalOpen(false);
   };
 
-  const filtered = ingredientes.filter(
-    (i) =>
-      i.nombre.toLowerCase().includes(search.toLowerCase()) &&
-      (proveedorFiltro === "" || i.proveedor === proveedorFiltro)
-  );
+  const handleSort = (key: SortKey) => {
+    if (sortBy === key) setSortAsc(!sortAsc);
+    else {
+      setSortBy(key);
+      setSortAsc(true);
+    }
+  };
+
+  const filtered = ingredientes
+    .filter(
+      (i) =>
+        i.nombre.toLowerCase().includes(search.toLowerCase()) &&
+        (proveedorFiltro === "" || i.proveedor === proveedorFiltro)
+    )
+    .sort((a, b) => {
+      const aVal = a[sortBy];
+      const bVal = b[sortBy];
+      return (aVal < bVal ? -1 : 1) * (sortAsc ? 1 : -1);
+    });
+
+  const renderSortIcon = (key: SortKey) => {
+    return sortBy === key ? (
+      sortAsc ? (
+        <ArrowUp size={14} />
+      ) : (
+        <ArrowDown size={14} />
+      )
+    ) : null;
+  };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      <div className="flex justify-between items-center flex-col md:flex-row gap-4">
-        <div className="flex gap-3 w-full md:w-auto">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+      {/* Botones y Filtros */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <Button onClick={() => openModal()}>Nuevo ingrediente</Button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Input
             placeholder="🔍 Buscar ingrediente..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="max-w-xs"
+            className="w-full sm:w-64"
           />
-
           <select
             value={proveedorFiltro}
             onChange={(e) => setProveedorFiltro(e.target.value)}
-            className="px-3 py-2 border rounded-xl text-sm text-gray-700"
+            className="px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 bg-white"
           >
             <option value="">Todos los proveedores</option>
             {proveedores.map((prov, i) => (
@@ -136,19 +169,40 @@ export default function IngredientsPage() {
             ))}
           </select>
         </div>
-        <Button onClick={() => openModal()}>Nuevo ingrediente</Button>
       </div>
 
+      {/* Tabla */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
-        <table className="min-w-full text-sm text-left">
+        <table className="min-w-full text-sm text-left whitespace-nowrap">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
-              <th className="px-4 py-3">Nombre</th>
+              <th
+                className="px-4 py-3 cursor-pointer"
+                onClick={() => handleSort("nombre")}
+              >
+                <span className="inline-flex items-center gap-1">
+                  Nombre {renderSortIcon("nombre")}
+                </span>
+              </th>
               <th className="px-4 py-3">Unidad</th>
               <th className="px-4 py-3">Proveedor</th>
-              <th className="px-4 py-3">Stock</th>
+              <th
+                className="px-4 py-3 cursor-pointer"
+                onClick={() => handleSort("stockActual")}
+              >
+                <span className="inline-flex items-center gap-1">
+                  Stock {renderSortIcon("stockActual")}
+                </span>
+              </th>
               <th className="px-4 py-3">Stock mínimo</th>
-              <th className="px-4 py-3">Precio x unidad</th>
+              <th
+                className="px-4 py-3 cursor-pointer"
+                onClick={() => handleSort("precioUnidad")}
+              >
+                <span className="inline-flex items-center gap-1">
+                  Precio x unidad {renderSortIcon("precioUnidad")}
+                </span>
+              </th>
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3 text-right">Acciones</th>
             </tr>
@@ -159,7 +213,16 @@ export default function IngredientsPage() {
                 <td className="px-4 py-3">{i.nombre}</td>
                 <td className="px-4 py-3">{i.unidad}</td>
                 <td className="px-4 py-3">{i.proveedor}</td>
-                <td className="px-4 py-3">{i.stockActual}</td>
+                <td className="px-4 py-3">
+                  {i.stockActual < i.stockMinimo ? (
+                    <span className="flex items-center gap-1 text-red-600 font-semibold">
+                      <AlertTriangle size={14} className="text-red-600" />{" "}
+                      {i.stockActual}
+                    </span>
+                  ) : (
+                    i.stockActual
+                  )}
+                </td>
                 <td className="px-4 py-3">{i.stockMinimo}</td>
                 <td className="px-4 py-3">${i.precioUnidad.toFixed(2)}</td>
                 <td className="px-4 py-3">
@@ -188,6 +251,7 @@ export default function IngredientsPage() {
         </table>
       </div>
 
+      {/* Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -202,7 +266,7 @@ export default function IngredientsPage() {
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
             />
             <Input
-              placeholder="Unidad de medida (ej. g, ml, unidad)"
+              placeholder="Unidad de medida"
               value={form.unidad}
               onChange={(e) => setForm({ ...form, unidad: e.target.value })}
             />
@@ -212,37 +276,29 @@ export default function IngredientsPage() {
               onChange={(e) => setForm({ ...form, proveedor: e.target.value })}
             />
             <Input
-              placeholder="Stock actual"
               type="number"
+              placeholder="Stock actual"
               value={form.stockActual}
               onChange={(e) =>
                 setForm({ ...form, stockActual: Number(e.target.value) })
               }
             />
             <Input
-              placeholder="Stock mínimo sugerido"
               type="number"
+              placeholder="Stock mínimo sugerido"
               value={form.stockMinimo}
               onChange={(e) =>
                 setForm({ ...form, stockMinimo: Number(e.target.value) })
               }
             />
             <Input
-              placeholder="Precio por unidad"
               type="number"
+              placeholder="Precio por unidad"
               value={form.precioUnidad}
               onChange={(e) =>
                 setForm({ ...form, precioUnidad: Number(e.target.value) })
               }
             />
-             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">¿Activo?</label>
-              <input
-                type="checkbox"
-                checked={form.activo}
-                onChange={(e) => setForm({ ...form, activo: e.target.checked })}
-              />
-            </div>
             <Button className="w-full" onClick={saveIngredient}>
               Guardar
             </Button>

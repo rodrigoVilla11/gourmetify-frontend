@@ -1,106 +1,80 @@
+// ✅ /app/cash/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { activeCashSession, CashMovement, CashSession } from "@/data/cash";
-import { CashSessionInfo } from "@/components/cash/CashSessionInfo";
+import { useState } from "react";
+import { salesHistory } from "@/data/salesHistory";
 import { CashSummary } from "@/components/cash/CashSummary";
-import { CashForm } from "@/components/cash/CashForm";
-import { CashList } from "@/components/cash/CashList";
-import { CashSalesSummary } from "@/components/cash/CashSalesSummary";
-import { useAuth } from "@/contexts/AuthContext";
-import { products } from "@/data/products";
+import { MovementTable, Movement } from "@/components/cash/MovementTable";
+import { MovementForm } from "@/components/cash/MovementForm";
+import { CloseCashModal } from "@/components/cash/CloseCashModal";
+import { v4 as uuidv4 } from "uuid";
 
 export default function CashPage() {
-  const { user } = useAuth();
-  const [session, setSession] = useState<CashSession>({
-    ...activeCashSession,
-    responsible: user.name, // 👈 setea responsable automáticamente
-  });
+  const [manualMovements, setManualMovements] = useState<Movement[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
 
-  const isClosed = session.closed ?? false;
+  const currentSales = salesHistory.slice(-5); // simulación ventas actuales
 
-  // En caso de que el usuario cambie mientras estás en la vista
-  useEffect(() => {
-    if (!session.closed) {
-      setSession((prev) => ({ ...prev, responsible: user.name }));
-    }
-  }, [user.name]);
+  const totalVentas = currentSales.reduce((sum, s) => sum + s.total, 0);
+  const totalIngresos = manualMovements
+    .filter((m) => m.type === "ingreso")
+    .reduce((sum, m) => sum + m.amount, 0);
+  const totalEgresos = manualMovements
+    .filter((m) => m.type === "egreso")
+    .reduce((sum, m) => sum + m.amount, 0);
+  const saldoFinal = totalVentas + totalIngresos - totalEgresos;
 
-  const handleAddMovement = (movement: Omit<CashMovement, "id" | "date">) => {
-    const newMovement: CashMovement = {
-      ...movement,
-      id: session.movements.length + 1,
-      date: new Date().toISOString(),
-    };
-  
-    // 👇 Si es un egreso con producto y cantidad, actualizamos el inventario
-    if (
-      newMovement.type === "expense" &&
-      newMovement.productId &&
-      typeof newMovement.quantity === "number"
-    ) {
-        const productIndex = products.findIndex((p) => p.id === Number(newMovement.productId));
-
-      if (productIndex >= 0) {
-        products[productIndex].stock = Math.max(
-          0,
-          products[productIndex].stock - newMovement.quantity
-        );
-      }
-    }
-  
-    setSession((prev) => ({
+  const handleSaveMovement = (movement: Omit<Movement, "id">) => {
+    setManualMovements((prev) => [
       ...prev,
-      movements: [newMovement, ...prev.movements],
-    }));
+      { ...movement, id: uuidv4() },
+    ]);
+    setShowForm(false);
   };
-  
-  return (
-    <div className="space-y-8 print-container">
-      <h2 className="text-2xl font-bold print-heading">Cash Register</h2>
 
-      {isClosed && (
-        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 p-4 rounded-xl shadow no-print">
-          <strong>This cash session is closed.</strong> No more changes can be made.
-        </div>
+  const handleCerrarCaja = () => {
+    // Acá guardarías la sesión (DB, archivo, etc)
+    console.log("Caja cerrada:", {
+      ventas: currentSales,
+      movimientos: manualMovements,
+      resumen: { totalVentas, totalIngresos, totalEgresos, saldoFinal },
+    });
+    setManualMovements([]);
+    setShowCloseModal(false);
+  };
+
+  return (
+    <div className="space-y-10 p-4 md:p-8">
+      <CashSummary
+        currentSales={currentSales}
+        manualMovements={manualMovements}
+        onCloseCash={() => setShowCloseModal(true)}
+        onNewMovement={() => setShowForm(true)}
+      />
+
+      {manualMovements.length > 0 && (
+        <MovementTable movements={manualMovements} />
       )}
 
-      <CashSessionInfo
-        session={session}
-        onUpdate={setSession}
-        disabled={isClosed}
+      {showForm && (
+        <MovementForm
+          onSave={handleSaveMovement}
+          onCancel={() => setShowForm(false)}
+        />
+      )}
+
+      <CloseCashModal
+        open={showCloseModal}
+        onClose={() => setShowCloseModal(false)}
+        onConfirm={handleCerrarCaja}
+        resumen={{
+          totalVentas,
+          totalIngresos,
+          totalEgresos,
+          saldoFinal,
+        }}
       />
-
-      <CashSalesSummary movements={session.movements} />
-
-      <CashSummary
-        movements={session.movements}
-        openingBalance={session.openingBalance}
-      />
-
-      <CashForm onAdd={handleAddMovement} disabled={isClosed} />
-
-      <CashList movements={session.movements} />
-
-      <div className="flex gap-4">
-        {!isClosed && (
-          <button
-            onClick={() => setSession((prev) => ({ ...prev, closed: true }))}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition no-print"
-          >
-            Close Cash Session
-          </button>
-        )}
-
-        {isClosed && (
-          <button
-            onClick={() => window.print()}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition no-print"
-          >
-            Export / Print
-          </button>
-        )}
-      </div>
     </div>
   );
 }

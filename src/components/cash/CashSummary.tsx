@@ -1,34 +1,93 @@
-import { CashMovement } from "@/data/cash";
+// ✅ /components/cash/CashSummary.tsx
+"use client";
 
-type Props = {
-  movements: CashMovement[];
-  openingBalance: number;
-};
+import { useMemo } from "react";
+import { salesHistory } from "@/data/salesHistory";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { formatCurrency } from "@/lib/format";
 
-export function CashSummary({ movements, openingBalance }: Props) {
-  const income = movements
-    .filter((m) => m.type === "income")
-    .reduce((sum, m) => sum + m.amount, 0);
+interface Movement {
+  id: string;
+  type: "ingreso" | "egreso";
+  concept: string;
+  amount: number;
+}
 
-  const expense = movements
-    .filter((m) => m.type === "expense")
-    .reduce((sum, m) => sum + m.amount, 0);
+interface Props {
+  currentSales: typeof salesHistory;
+  manualMovements: Movement[];
+  onCloseCash: () => void;
+  onNewMovement: () => void;
+}
 
-  const finalBalance = openingBalance + income - expense;
+export function CashSummary({
+  currentSales,
+  manualMovements,
+  onCloseCash,
+  onNewMovement,
+}: Props) {
+  const totalSales = useMemo(
+    () => currentSales.reduce((sum, s) => sum + s.total, 0),
+    [currentSales]
+  );
+
+  const totalIngresos = useMemo(
+    () =>
+      manualMovements
+        .filter((m) => m.type === "ingreso")
+        .reduce((sum, m) => sum + m.amount, 0),
+    [manualMovements]
+  );
+
+  const totalEgresos = useMemo(
+    () =>
+      manualMovements
+        .filter((m) => m.type === "egreso")
+        .reduce((sum, m) => sum + m.amount, 0),
+    [manualMovements]
+  );
+
+  const saldoFinal = totalSales + totalIngresos - totalEgresos;
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow space-y-3">
-      <h3 className="text-xl font-bold mb-2">Cash Summary</h3>
-      <p>Opening Balance: <span className="font-semibold">${openingBalance}</span></p>
-      <p>Total Incomes: <span className="text-green-600 font-semibold">+${income}</span></p>
-      <p>Total Expenses: <span className="text-red-600 font-semibold">-${expense}</span></p>
-      <hr />
-      <p className="text-lg font-bold">
-        Final Balance:{" "}
-        <span className={finalBalance >= 0 ? "text-green-700" : "text-red-700"}>
-          ${finalBalance}
-        </span>
-      </p>
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold text-primary">Caja actual</h2>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card title="💸 Total Ventas">
+          <p className="text-2xl font-bold text-green-700">
+            {formatCurrency(totalSales)}
+          </p>
+        </Card>
+
+        <Card title="➕ Ingresos Manuales">
+          <p className="text-2xl font-bold text-blue-700">
+            {formatCurrency(totalIngresos)}
+          </p>
+        </Card>
+
+        <Card title="➖ Egresos Manuales">
+          <p className="text-2xl font-bold text-red-700">
+            {formatCurrency(totalEgresos)}
+          </p>
+        </Card>
+
+        <Card title="🧾 Saldo Final del Turno">
+          <p className="text-2xl font-bold text-primary">
+            {formatCurrency(saldoFinal)}
+          </p>
+        </Card>
+      </div>
+
+      <div className="flex justify-end gap-3">
+        <Button variant="secondary" onClick={onNewMovement}>
+          Registrar Movimiento
+        </Button>
+        <Button variant="default" onClick={onCloseCash}>
+          Cerrar Caja
+        </Button>
+      </div>
     </div>
   );
 }
