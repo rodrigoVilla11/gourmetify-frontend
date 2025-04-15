@@ -5,3 +5,15 @@ export function formatCurrency(value: number): string {
     })}`;
   }
   
+  export function formatUnit(unit: "kg" | "g" | "l" | "ml" | "u"): string {
+    const map: Record<string, string> = {
+      kg: "kg",
+      g: "g",
+      l: "L",
+      ml: "ml",
+      u: "unid.",
+    };
+  
+    return map[unit] ?? unit;
+  }
+  

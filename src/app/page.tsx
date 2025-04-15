@@ -18,7 +18,7 @@ import {
 import { UserMenu } from "@/components/ui/UserMenu";
 
 export default function Home() {
-  const { user } = useAuth();
+  // const { user } = useAuth();
 
   const ultimos7Dias = [
     { dia: "Lun", monto: 3200 , ventas: 32 },

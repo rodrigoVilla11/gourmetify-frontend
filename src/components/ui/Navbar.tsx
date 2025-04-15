@@ -16,6 +16,10 @@ export function Sidebar() {
     { name: "Dashboard", href: "/dashboard" },
     { name: "Cash Register", href: "/cash" },
     { name: "Cash History", href: "/cash/history" },
+    { name: "Inventory", href: "/inventory" },
+    { name: "Users", href: "/users" },
+    { name: "Purchases", href: "/purchases" },
+
   ]
 
   return (
@@ -33,13 +37,13 @@ export function Sidebar() {
         className={`fixed top-0 left-0 h-full w-64 bg-[url('/FONDO%20TEXTURA%20VERDE-BLANCO%20MAS%20ESPACIO.png')] border-r border-gray-200 shadow-sm z-10 transition-transform duration-300 ease-in-out 
         ${mobileOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
       >
-        <div className="flex flex-col items-center justify-center gap-3 px-6 pb-8">
+        <div className="flex flex-col items-center justify-center gap-3 px-6">
           <div className="w-50 h-22">
             <img src="/LogoGourmetifyBlancoSinFondo.png" alt="Logo-Gourmetify" />
           </div>
         </div>
 
-        <nav className="flex flex-col gap-3 mt-4 px-6 text-sm font-medium">
+        <nav className="flex flex-col gap-3 px-6 text-sm font-medium">
           {navItems.map((item) => {
             const isActive = pathname === item.href
             return (

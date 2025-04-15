@@ -1,106 +1,89 @@
 "use client";
 
-import { StockAdjustmentForm } from "@/components/inventory/StockAdjustmentForm";
-import { products } from "@/data/products";
-import { stockHistory } from "@/data/stockHistroy";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { InventoryItem } from "@/data/inventory";
+import { InventoryTable } from "@/components/inventory/InventoryTable";
+import { AdjustStockModal } from "@/components/inventory/AdjustStockModal";
+import { InventoryFilters } from "@/components/inventory/InventoryFilters";
+import { Button } from "@/components/ui/Button";
+
+const initialItems: InventoryItem[] = [
+  { id: 1, name: "Salmón fresco", stock: 3.2, unit: "kg", minimumStock: 2 },
+  { id: 2, name: "Arroz para sushi", stock: 8, unit: "kg", minimumStock: 5 },
+  { id: 3, name: "Palta", stock: 12, unit: "u", minimumStock: 10 },
+  { id: 4, name: "Queso crema", stock: 4.5, unit: "kg" },
+];
 
 export default function InventoryPage() {
-  const [filterProduct, setFilterProduct] = useState("");
-  const [filterReason, setFilterReason] = useState("");
+  const router = useRouter();
+  const [items, setItems] = useState<InventoryItem[]>(initialItems);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
-  const getProductName = (id: number) =>
-    products.find((p) => p.id === id)?.name || "Unknown";
+  const [query, setQuery] = useState("");
+  const [unit, setUnit] = useState("");
+  const [onlyLowStock, setOnlyLowStock] = useState(false);
 
-  const filteredHistory = stockHistory.filter((item) => {
-    const matchProduct = filterProduct ? item.productId.toString() === filterProduct : true;
-    const matchReason = filterReason ? item.reason === filterReason : true;
-    return matchProduct && matchReason;
-  });
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      const matchesQuery = item.name.toLowerCase().includes(query.toLowerCase());
+      const matchesUnit = !unit || item.unit === unit;
+      const matchesStock =
+        !onlyLowStock || (item.minimumStock && item.stock < item.minimumStock);
+      return matchesQuery && matchesUnit && matchesStock;
+    });
+  }, [items, query, unit, onlyLowStock]);
 
-  
+  const handleAdjustStock = (data: {
+    itemId: number;
+    type: "purchase" | "loss" | "return";
+    quantity: number;
+    reason: string;
+  }) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== data.itemId) return item;
+        const newStock =
+          data.type === "purchase"
+            ? item.stock + data.quantity
+            : item.stock - data.quantity;
+        return { ...item, stock: Math.max(0, newStock) };
+      })
+    );
+  };
+
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-bold">Inventory Management</h1>
+    <div className="p-4 md:p-8 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-primary">Inventario</h1>
+        <Button onClick={() => router.push("/inventory/adjustments")}>Ver historial</Button>
+      </div>
 
-      <section>
-        <h2 className="text-lg font-semibold mb-2">Adjust Stock</h2>
-        <StockAdjustmentForm />
-      </section>
+      <InventoryFilters
+        query={query}
+        onQueryChange={setQuery}
+        unit={unit}
+        onUnitChange={setUnit}
+        onlyLowStock={onlyLowStock}
+        onToggleLowStock={() => setOnlyLowStock(!onlyLowStock)}
+      />
 
-      <section>
-        <h2 className="text-lg font-semibold mb-2">Stock Movement History</h2>
+      <InventoryTable
+        items={filteredItems}
+        onAdjust={(id) => {
+          const item = items.find((i) => i.id === id);
+          setSelectedItem(item ?? null);
+          setShowModal(true);
+        }}
+      />
 
-        <div className="flex gap-4 flex-wrap text-sm mb-4">
-          <label>
-            Product:
-            <select
-              value={filterProduct}
-              onChange={(e) => setFilterProduct(e.target.value)}
-              className="ml-1 border rounded px-2 py-1"
-            >
-              <option value="">All</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id.toString()}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Reason:
-            <select
-              value={filterReason}
-              onChange={(e) => setFilterReason(e.target.value)}
-              className="ml-1 border rounded px-2 py-1"
-            >
-              <option value="">All</option>
-              <option value="purchase">Purchase</option>
-              <option value="loss">Loss</option>
-              <option value="return">Return</option>
-              <option value="manual">Manual</option>
-            </select>
-          </label>
-        </div>
-
-        {filteredHistory.length === 0 ? (
-          <p className="text-gray-500 italic">
-            No stock movements recorded yet.
-          </p>
-        ) : (
-          <div className="overflow-auto">
-            <table className="w-full text-sm border rounded-lg overflow-hidden">
-              <thead className="bg-gray-100 text-left">
-                <tr>
-                  <th className="px-3 py-2">Date</th>
-                  <th className="px-3 py-2">Product</th>
-                  <th className="px-3 py-2">Qty</th>
-                  <th className="px-3 py-2">Reason</th>
-                  <th className="px-3 py-2">Responsible</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredHistory.map((item) => (
-                  <tr key={item.id} className="border-t">
-                    <td className="px-3 py-2">
-                      {new Date(item.date).toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2">
-                      {getProductName(item.productId)}
-                    </td>
-                    <td className="px-3 py-2">
-                      {item.quantity > 0 ? `+${item.quantity}` : item.quantity}
-                    </td>
-                    <td className="px-3 py-2 capitalize">{item.reason}</td>
-                    <td className="px-3 py-2">{item.responsible}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <AdjustStockModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        item={selectedItem}
+        onSubmit={handleAdjustStock}
+      />
     </div>
   );
 }
