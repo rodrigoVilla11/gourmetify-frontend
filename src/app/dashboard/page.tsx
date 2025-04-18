@@ -1,4 +1,3 @@
-// ✅ /app/dashboard/page.tsx
 "use client";
 
 import { useMemo, useState } from "react";
@@ -12,6 +11,8 @@ import { TopProducts } from "@/components/dashboard/TopProducts";
 import { TopCombos } from "@/components/dashboard/TopCombos";
 import { SalesEvolutionChart } from "@/components/dashboard/SalesEvolutionChart";
 import { SalesByShiftChart } from "@/components/dashboard/SalesByShiftCard";
+import { NotificationPanel } from "@/components/notifications/NotificationPanel";
+import { Notification } from "@/components/notifications/NotificationItem";
 
 export default function DashboardPage() {
   const [filters, setFilters] = useState({
@@ -21,6 +22,25 @@ export default function DashboardPage() {
     shift: "",
     responsible: "",
   });
+
+  const stockLowProducts = products.filter(
+    (p) => p.minimumStock && p.stock < p.minimumStock
+  );
+
+  const notifications: Notification[] = useMemo(() => {
+    const n: Notification[] = [];
+    if (stockLowProducts.length > 0) {
+      n.push({
+        id: "low-stock",
+        type: "warning",
+        message: `${stockLowProducts.length} productos tienen stock bajo`,
+        icon: "📦",
+        link: "/inventory",
+        date: new Date().toISOString(),
+      });
+    }
+    return n;
+  }, [stockLowProducts]);
 
   const filteredSales = useMemo(() => {
     return salesHistory.filter((s) => {
@@ -127,6 +147,8 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Dashboard</h1>
       </div>
+
+      <NotificationPanel notifications={notifications} />
 
       <DashboardFilters value={filters} onChange={setFilters} />
 

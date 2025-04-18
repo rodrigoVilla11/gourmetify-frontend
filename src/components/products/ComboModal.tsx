@@ -5,67 +5,73 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Switch } from "@/components/ui/Switch";
+import { CreateComboDto } from "@/types/Combo"; // Asegurate que esté bien importado
 
 type Producto = {
   id: number;
-  nombre: string;
-};
-
-export type Combo = {
-  id?: number;
-  nombre: string;
-  productos: {
-    id: number;
-    nombre: string;
-    cantidad: number;
-  }[];
-  precio: number;
-  activo: boolean;
+  name: string;
 };
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  onSave: (combo: Combo) => void;
-  combo?: Combo | null;
+  onSave: (combo: CreateComboDto) => void;
   productosDisponibles: Producto[];
+  combo?: CreateComboDto | null;
 };
 
-export function ComboModal({ open, onClose, onSave, combo, productosDisponibles }: Props) {
-  const [form, setForm] = useState<Combo>({
-    nombre: "",
-    productos: [],
-    precio: 0,
-    activo: true,
+export function ComboModal({ open, onClose, onSave, productosDisponibles,  combo }: Props) {
+  const [form, setForm] = useState<CreateComboDto>({
+    name: "",
+    price: 0,
+    cost: 0, // este lo vas a calcular en el backend
+    categoryId: 1, // podés poner un selector si lo deseas
+    active: true,
+    items: [],
   });
 
   const [productoId, setProductoId] = useState<number>(0);
   const [cantidad, setCantidad] = useState<number>(1);
-
+  
   useEffect(() => {
-    if (combo) setForm(combo);
-    else setForm({ nombre: "", productos: [], precio: 0, activo: true });
-  }, [combo]);
+    if (open) {
+      if (combo) {
+        setForm(combo); // <-- usa el combo si viene
+      } else {
+        // reset si es nuevo
+        setForm({
+          name: "",
+          price: 0,
+          cost: 0,
+          categoryId: 1,
+          active: true,
+          items: [],
+        });
+      }
+      setProductoId(0);
+      setCantidad(1);
+    }
+  }, [open, combo]);
 
   const agregarProducto = () => {
-    const producto = productosDisponibles.find(p => p.id === productoId);
-    if (!producto || cantidad <= 0) return;
+    if (productoId === 0 || cantidad <= 0) return;
 
-    if (form.productos.some(p => p.id === productoId)) return;
+    const yaExiste = form.items.some((i) => i.productId === productoId);
+    if (yaExiste) return;
 
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      productos: [...prev.productos, { id: producto.id, nombre: producto.nombre, cantidad }],
+      items: [...prev.items, { productId: productoId, quantity: cantidad }],
     }));
 
     setProductoId(0);
     setCantidad(1);
   };
 
-  const quitarProducto = (id: number) => {
-    setForm(prev => ({
+  const quitarProducto = (productId: number) => {
+    setForm((prev) => ({
       ...prev,
-      productos: prev.productos.filter(p => p.id !== id),
+      items: prev.items.filter((item) => item.productId !== productId),
     }));
   };
 
@@ -78,22 +84,22 @@ export function ComboModal({ open, onClose, onSave, combo, productosDisponibles 
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md space-y-6">
         <DialogHeader>
-          <DialogTitle>{combo ? "Editar combo" : "Nuevo combo"}</DialogTitle>
+          <DialogTitle>Nuevo combo</DialogTitle>
         </DialogHeader>
 
         <Input
           placeholder="Nombre del combo"
-          value={form.nombre}
-          onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
         />
 
         <div className="flex items-center gap-3">
           <Switch
-            checked={form.activo}
-            onCheckedChange={(val) => setForm({ ...form, activo: val })}
+            checked={form.active}
+            onCheckedChange={(val) => setForm({ ...form, active: val })}
           />
-          <span className={form.activo ? "text-green-600" : "text-red-600"}>
-            {form.activo ? "Activo" : "Inactivo"}
+          <span className={form.active ? "text-green-600" : "text-red-600"}>
+            {form.active ? "Activo" : "Inactivo"}
           </span>
         </div>
 
@@ -106,7 +112,7 @@ export function ComboModal({ open, onClose, onSave, combo, productosDisponibles 
             <option value={0}>Seleccionar producto</option>
             {productosDisponibles.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.nombre}
+                {p.name}
               </option>
             ))}
           </select>
@@ -118,23 +124,32 @@ export function ComboModal({ open, onClose, onSave, combo, productosDisponibles 
             placeholder="Cantidad"
           />
         </div>
+
         <Button variant="outline" onClick={agregarProducto}>
           + Agregar producto
         </Button>
 
         <ul className="text-sm space-y-1">
-          {form.productos.map((p) => (
-            <li key={p.id} className="flex justify-between border-b py-1 text-gray-800">
-              <span>{p.nombre} x{p.cantidad}</span>
-              <button onClick={() => quitarProducto(p.id)} className="text-red-500 text-xs">Quitar</button>
-            </li>
-          ))}
+          {form.items.map((item) => {
+            const nombre = productosDisponibles.find((p) => p.id === item.productId)?.name || "Desconocido";
+            return (
+              <li key={item.productId} className="flex justify-between border-b py-1 text-gray-800">
+                <span>{nombre} x{item.quantity}</span>
+                <button
+                  onClick={() => quitarProducto(item.productId)}
+                  className="text-red-500 text-xs"
+                >
+                  Quitar
+                </button>
+              </li>
+            );
+          })}
         </ul>
 
         <Input
           type="number"
-          value={form.precio}
-          onChange={(e) => setForm({ ...form, precio: parseFloat(e.target.value) })}
+          value={form.price}
+          onChange={(e) => setForm({ ...form, price: parseFloat(e.target.value) })}
           placeholder="Precio final del combo"
         />
 

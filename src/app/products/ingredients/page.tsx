@@ -1,118 +1,65 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { useState, useEffect } from "react";
+import {
+  useGetIngredientsQuery,
+  useCreateIngredientMutation,
+  useUpdateIngredientMutation,
+} from "@/redux/services/ingredientsApi";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/Dialog";
-import { ArrowDown, ArrowUp, AlertTriangle } from "lucide-react";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Switch } from "@/components/ui/Switch";
+import { AlertTriangle, ArrowDown, ArrowUp } from "lucide-react";
+import { Ingredient } from "@/types/Ingredient";
 
-export type Ingredient = {
-  id: number;
-  nombre: string;
-  unidad: string;
-  proveedor: string;
-  stockActual: number;
-  stockMinimo: number;
-  precioUnidad: number;
-  activo: boolean;
-};
-
-type SortKey = keyof Pick<
-  Ingredient,
-  "nombre" | "stockActual" | "precioUnidad"
->;
+type SortKey = keyof Pick<Ingredient, "name" | "currentStock" | "cost">;
 
 export default function IngredientsPage() {
+  const { data: ingredientes = [] } = useGetIngredientsQuery();
+  const [createIngredient] = useCreateIngredientMutation();
+  const [updateIngredient] = useUpdateIngredientMutation();
+
   const [search, setSearch] = useState("");
-  const [proveedorFiltro, setProveedorFiltro] = useState<string>("");
+  const [proveedorFiltro, setProveedorFiltro] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editIngredient, setEditIngredient] = useState<Ingredient | null>(null);
 
-  const [sortBy, setSortBy] = useState<SortKey>("nombre");
+  const [sortBy, setSortBy] = useState<SortKey>("name");
   const [sortAsc, setSortAsc] = useState(true);
-
-  const [ingredientes, setIngredientes] = useState<Ingredient[]>([
-    {
-      id: 1,
-      nombre: "Pan",
-      unidad: "unidad",
-      proveedor: "Proveedor A",
-      stockActual: 50,
-      stockMinimo: 10,
-      precioUnidad: 80,
-      activo: true,
-    },
-    {
-      id: 2,
-      nombre: "Carne",
-      unidad: "g",
-      proveedor: "Proveedor B",
-      stockActual: 2000,
-      stockMinimo: 5000,
-      precioUnidad: 0.9,
-      activo: true,
-    },
-    {
-      id: 3,
-      nombre: "Lechuga",
-      unidad: "hoja",
-      proveedor: "Proveedor A",
-      stockActual: 20,
-      stockMinimo: 30,
-      precioUnidad: 15,
-      activo: false,
-    },
-  ]);
 
   const [form, setForm] = useState<Ingredient>({
     id: 0,
-    nombre: "",
-    unidad: "",
-    proveedor: "",
-    stockActual: 0,
-    stockMinimo: 0,
-    precioUnidad: 0,
-    activo: true,
+    name: "",
+    unit: "",
+    provider: "",
+    currentStock: 0,
+    minimumStock: 0,
+    cost: 0,
+    active: true,
   });
 
-  const proveedores = [...new Set(ingredientes.map((i) => i.proveedor))];
-
-  const openModal = (ingredient?: Ingredient) => {
-    if (ingredient) {
-      setEditIngredient(ingredient);
-      setForm(ingredient);
+  useEffect(() => {
+    if (editIngredient) {
+      setForm(editIngredient);
     } else {
-      setEditIngredient(null);
       setForm({
         id: 0,
-        nombre: "",
-        unidad: "",
-        proveedor: "",
-        stockActual: 0,
-        stockMinimo: 0,
-        precioUnidad: 0,
-        activo: true,
+        name: "",
+        unit: "",
+        provider: "",
+        currentStock: 0,
+        minimumStock: 0,
+        cost: 0,
+        active: true,
       });
     }
-    setModalOpen(true);
-  };
-
-  const saveIngredient = () => {
-    if (editIngredient) {
-      setIngredientes((prev) =>
-        prev.map((i) => (i.id === editIngredient.id ? form : i))
-      );
-    } else {
-      const nuevo = { ...form, id: Date.now() };
-      setIngredientes((prev) => [...prev, nuevo]);
-    }
-    setModalOpen(false);
-  };
+  }, [editIngredient]);
 
   const handleSort = (key: SortKey) => {
     if (sortBy === key) setSortAsc(!sortAsc);
@@ -122,11 +69,11 @@ export default function IngredientsPage() {
     }
   };
 
-  const filtered = ingredientes
+  const filtered = [...ingredientes]
     .filter(
       (i) =>
-        i.nombre.toLowerCase().includes(search.toLowerCase()) &&
-        (proveedorFiltro === "" || i.proveedor === proveedorFiltro)
+        i.name.toLowerCase().includes(search.toLowerCase()) &&
+        (proveedorFiltro === "" || i.provider === proveedorFiltro)
     )
     .sort((a, b) => {
       const aVal = a[sortBy];
@@ -134,21 +81,32 @@ export default function IngredientsPage() {
       return (aVal < bVal ? -1 : 1) * (sortAsc ? 1 : -1);
     });
 
-  const renderSortIcon = (key: SortKey) => {
-    return sortBy === key ? (
-      sortAsc ? (
-        <ArrowUp size={14} />
-      ) : (
-        <ArrowDown size={14} />
-      )
-    ) : null;
+  const proveedores = [...new Set(ingredientes.map((i) => i.provider))];
+
+  const saveIngredient = async () => {
+    if (editIngredient?.id) {
+      await updateIngredient({
+        id: editIngredient.id,
+        data: { ...form }, // 👈 envolvemos en `data`
+      });
+    } else {
+      await createIngredient(form);
+    }
+    setModalOpen(false);
   };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
-      {/* Botones y Filtros */}
+      {/* Filtros */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <Button onClick={() => openModal()}>Nuevo ingrediente</Button>
+        <Button
+          onClick={() => {
+            setEditIngredient(null);
+            setModalOpen(true);
+          }}
+        >
+          Nuevo ingrediente
+        </Button>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Input
             placeholder="🔍 Buscar ingrediente..."
@@ -178,29 +136,35 @@ export default function IngredientsPage() {
             <tr>
               <th
                 className="px-4 py-3 cursor-pointer"
-                onClick={() => handleSort("nombre")}
+                onClick={() => handleSort("name")}
               >
                 <span className="inline-flex items-center gap-1">
-                  Nombre {renderSortIcon("nombre")}
+                  Nombre{" "}
+                  {sortBy === "name" &&
+                    (sortAsc ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                 </span>
               </th>
               <th className="px-4 py-3">Unidad</th>
               <th className="px-4 py-3">Proveedor</th>
               <th
                 className="px-4 py-3 cursor-pointer"
-                onClick={() => handleSort("stockActual")}
+                onClick={() => handleSort("currentStock")}
               >
                 <span className="inline-flex items-center gap-1">
-                  Stock {renderSortIcon("stockActual")}
+                  Stock{" "}
+                  {sortBy === "currentStock" &&
+                    (sortAsc ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                 </span>
               </th>
-              <th className="px-4 py-3">Stock mínimo</th>
+              <th className="px-4 py-3">Mínimo</th>
               <th
                 className="px-4 py-3 cursor-pointer"
-                onClick={() => handleSort("precioUnidad")}
+                onClick={() => handleSort("cost")}
               >
                 <span className="inline-flex items-center gap-1">
-                  Precio x unidad {renderSortIcon("precioUnidad")}
+                  Costo{" "}
+                  {sortBy === "cost" &&
+                    (sortAsc ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                 </span>
               </th>
               <th className="px-4 py-3">Estado</th>
@@ -210,37 +174,39 @@ export default function IngredientsPage() {
           <tbody className="text-gray-800">
             {filtered.map((i) => (
               <tr key={i.id} className="border-t">
-                <td className="px-4 py-3">{i.nombre}</td>
-                <td className="px-4 py-3">{i.unidad}</td>
-                <td className="px-4 py-3">{i.proveedor}</td>
+                <td className="px-4 py-3">{i.name}</td>
+                <td className="px-4 py-3">{i.unit}</td>
+                <td className="px-4 py-3">{i.provider}</td>
                 <td className="px-4 py-3">
-                  {i.stockActual < i.stockMinimo ? (
+                  {i.currentStock < i.minimumStock ? (
                     <span className="flex items-center gap-1 text-red-600 font-semibold">
-                      <AlertTriangle size={14} className="text-red-600" />{" "}
-                      {i.stockActual}
+                      <AlertTriangle size={14} /> {i.currentStock}
                     </span>
                   ) : (
-                    i.stockActual
+                    i.currentStock
                   )}
                 </td>
-                <td className="px-4 py-3">{i.stockMinimo}</td>
-                <td className="px-4 py-3">${i.precioUnidad.toFixed(2)}</td>
+                <td className="px-4 py-3">{i.minimumStock}</td>
+                <td className="px-4 py-3">${i.cost.toFixed(2)}</td>
                 <td className="px-4 py-3">
                   <span
                     className={`text-xs font-medium px-2 py-1 rounded-full ${
-                      i.activo
+                      i.active
                         ? "bg-green-100 text-green-800"
                         : "bg-red-100 text-red-800"
                     }`}
                   >
-                    {i.activo ? "Activo" : "Inactivo"}
+                    {i.active ? "Activo" : "Inactivo"}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={() => openModal(i)}
+                    onClick={() => {
+                      setEditIngredient(i);
+                      setModalOpen(true);
+                    }}
                   >
                     Editar
                   </Button>
@@ -262,43 +228,50 @@ export default function IngredientsPage() {
           <div className="space-y-4">
             <Input
               placeholder="Nombre"
-              value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
             <Input
               placeholder="Unidad de medida"
-              value={form.unidad}
-              onChange={(e) => setForm({ ...form, unidad: e.target.value })}
+              value={form.unit}
+              onChange={(e) => setForm({ ...form, unit: e.target.value })}
             />
             <Input
               placeholder="Proveedor"
-              value={form.proveedor}
-              onChange={(e) => setForm({ ...form, proveedor: e.target.value })}
+              value={form.provider}
+              onChange={(e) => setForm({ ...form, provider: e.target.value })}
             />
             <Input
               type="number"
               placeholder="Stock actual"
-              value={form.stockActual}
+              value={form.currentStock}
               onChange={(e) =>
-                setForm({ ...form, stockActual: Number(e.target.value) })
+                setForm({ ...form, currentStock: Number(e.target.value) })
               }
             />
             <Input
               type="number"
               placeholder="Stock mínimo sugerido"
-              value={form.stockMinimo}
+              value={form.minimumStock}
               onChange={(e) =>
-                setForm({ ...form, stockMinimo: Number(e.target.value) })
+                setForm({ ...form, minimumStock: Number(e.target.value) })
               }
             />
             <Input
               type="number"
               placeholder="Precio por unidad"
-              value={form.precioUnidad}
+              value={form.cost}
               onChange={(e) =>
-                setForm({ ...form, precioUnidad: Number(e.target.value) })
+                setForm({ ...form, cost: Number(e.target.value) })
               }
             />
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={form.active}
+                onCheckedChange={(val) => setForm({ ...form, active: val })}
+              />
+              <span>{form.active ? "Activo" : "Inactivo"}</span>
+            </div>
             <Button className="w-full" onClick={saveIngredient}>
               Guardar
             </Button>

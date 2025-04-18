@@ -1,9 +1,6 @@
-// /src/components/categories/CategoryList.tsx
-
 "use client";
 
 import { Category } from "@/data/categories";
-import { useState } from "react";
 
 type Props = {
   categories: Category[];

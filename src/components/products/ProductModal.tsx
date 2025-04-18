@@ -10,275 +10,231 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useState, useEffect } from "react";
 import { CategoryModal } from "@/components/products/CategoryModal";
-
-export type IngredienteSeleccionado = {
-  id: number;
-  nombre: string;
-  unidad: string;
-  cantidad: number;
-  precioUnidad: number;
-};
-
-export type ProductFormData = {
-  id?: number;
-  nombre: string;
-  categoria: string;
-  stock: number;
-  costo: number;
-  precio: number;
-  activo: boolean;
-  ingredientes: IngredienteSeleccionado[];
-  imagenes?: string[];
-};
+import { Ingredient } from "@/types/Ingredient";
+import { Product, ProductIngredient } from "@/types/Product";
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  onSave: (data: ProductFormData) => void;
-  product?: ProductFormData | null;
+  onSave: (data: Partial<Product> & { ingredients: ProductIngredient[] }) => void;
+  product?: Product | null;
+  ingredientsDisponibles: Ingredient[];
+  categorias: { id: number; name: string }[];
 };
 
-const ingredientesDisponibles = [
-  { id: 1, nombre: "Pan", unidad: "unidad", precioUnidad: 50 },
-  { id: 2, nombre: "Carne", unidad: "g", precioUnidad: 1.5 },
-  { id: 3, nombre: "Cheddar", unidad: "g", precioUnidad: 1 },
-  { id: 4, nombre: "Lechuga", unidad: "hoja", precioUnidad: 0.5 },
-  { id: 5, nombre: "Tomate", unidad: "rodaja", precioUnidad: 0.75 },
-];
-const categorias = [
-  {
-    id: 1,
-    nombre: "Comida Rápida",
-    descripcion: "Platos listos en pocos minutos",
-    activo: true,
-  },
-  {
-    id: 2,
-    nombre: "Bebidas",
-    descripcion: "Gaseosas, jugos, etc.",
-    activo: true,
-  },
-];
-
-export function ProductModal({ open, onClose, onSave, product }: Props) {
-  const [form, setForm] = useState<ProductFormData>({
-    nombre: "",
-    categoria: "",
+export function ProductModal({
+  open,
+  onClose,
+  onSave,
+  product,
+  ingredientsDisponibles,
+  categorias,
+}: Props) {
+  const [form, setForm] = useState<Partial<Product>>({
+    name: "",
+    categoryId: 0,
+    price: 0,
     stock: 0,
-    costo: 0,
-    precio: 0,
-    activo: true,
-    ingredientes: [],
+    active: true,
+    ingredients: [],
   });
 
-  const [selectedIngredientId, setSelectedIngredientId] = useState<number>(0);
-  const [selectedCantidad, setSelectedCantidad] = useState<number>(0);
   const [modalCategoriaOpen, setModalCategoriaOpen] = useState(false);
-  // Calcular costo automáticamente
-  useEffect(() => {
-    const nuevoCosto = form.ingredientes.reduce(
-      (acc, ing) => acc + ing.precioUnidad * ing.cantidad,
-      0
-    );
-    setForm((prev) => ({ ...prev, costo: nuevoCosto }));
-  }, [form.ingredientes]);
+  const [selectedIngredientId, setSelectedIngredientId] = useState(0);
+  const [selectedCantidad, setSelectedCantidad] = useState(0);
 
   useEffect(() => {
-    if (product) setForm(product);
-    else {
+    if (product) {
+      setForm({ ...product, ingredients: product.ingredients || [] });
+    } else {
       setForm({
-        nombre: "",
-        categoria: "",
+        name: "",
+        categoryId: 0,
+        price: 0,
         stock: 0,
-        costo: 0,
-        precio: 0,
-        activo: true,
-        ingredientes: [],
+        active: true,
+        ingredients: [],
       });
     }
   }, [product]);
+
+  const calcularCosto = () => {
+    return (
+      form.ingredients?.reduce(
+        (acc, pi) => acc + pi.quantity * pi.ingredient.cost,
+        0
+      ) ?? 0
+    );
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setForm({
-      ...form,
-      [name]:
-        name === "nombre" || name === "categoria"
-          ? value
-          : parseFloat(value) || 0,
-    });
+    setForm((prev) => ({
+      ...prev,
+      [name]: name === "name"
+        ? value
+        : name === "categoryId"
+        ? parseInt(value)
+        : name === "active"
+        ? value === "true"
+        : parseFloat(value),
+    }));
+  };
+
+  const handleAddIngredient = () => {
+    const ingrediente = ingredientsDisponibles.find((i) => i.id === selectedIngredientId);
+    if (!ingrediente || selectedCantidad <= 0) return;
+
+    setForm((prev) => ({
+      ...prev,
+      ingredients: [
+        ...(prev.ingredients || []),
+        {
+          id: Date.now(), // Temporal para React
+          ingredient: ingrediente,
+          quantity: selectedCantidad,
+        },
+      ],
+    }));
+
+    setSelectedCantidad(0);
+    setSelectedIngredientId(0);
+  };
+
+  const handleRemoveIngredient = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      ingredients: (prev.ingredients || []).filter((_, i) => i !== index),
+    }));
   };
 
   const handleSubmit = () => {
-    onSave(form);
+    const finalPayload = {
+      ...form,
+      cost: calcularCosto(),
+      ingredients: form.ingredients || [],
+    };
+    onSave(finalPayload);
     onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>
-            {product ? "Editar producto" : "Nuevo producto"}
-          </DialogTitle>
+          <DialogTitle>{product ? "Editar producto" : "Nuevo producto"}</DialogTitle>
         </DialogHeader>
+
         <div className="space-y-4">
+          {/* Nombre */}
           <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              Nombre del producto
-            </label>
+            <label className="block text-sm mb-1">Nombre</label>
             <Input
-              name="nombre"
-              value={form.nombre}
+              name="name"
+              value={form.name}
               onChange={handleChange}
-              placeholder="Ej: Hamburguesa doble"
+              placeholder="Ej: Hamburguesa"
             />
           </div>
 
+          {/* Categoría */}
           <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              Categoría
-            </label>
+            <label className="block text-sm mb-1">Categoría</label>
             <div className="flex gap-2">
               <select
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-                value={form.categoria}
-                onChange={(e) =>
-                  setForm({ ...form, categoria: e.target.value })
-                }
+                name="categoryId"
+                className="w-full border px-3 py-2 text-sm rounded"
+                value={form.categoryId}
+                onChange={handleChange}
               >
-                <option value="">Seleccionar categoría</option>
-                {categorias.map((cat) => (
-                  <option key={cat.id} value={cat.nombre}>
-                    {cat.nombre}
+                <option value={0}>Seleccionar categoría</option>
+                {categorias.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
                   </option>
                 ))}
               </select>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setModalCategoriaOpen(true)}
-              >
+              <Button size="sm" variant="outline" onClick={() => setModalCategoriaOpen(true)}>
                 +
               </Button>
             </div>
           </div>
 
+          {/* Precio */}
           <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              Precio de venta
-            </label>
+            <label className="block text-sm mb-1">Precio</label>
             <Input
-              name="precio"
-              value={form.precio}
-              onChange={handleChange}
+              name="price"
               type="number"
-              placeholder="Ej: 650"
+              value={form.price ?? 0}
+              onChange={handleChange}
+              placeholder="Ej: 1500"
             />
           </div>
 
+          {/* Estado */}
           <div>
-            <label className="block text-sm text-gray-600 mb-1">Estado</label>
+            <label className="block text-sm mb-1">Estado</label>
             <select
-              name="activo"
-              value={form.activo ? "true" : "false"}
-              onChange={(e) =>
-                setForm({ ...form, activo: e.target.value === "true" })
-              }
-              className="w-full border rounded-lg px-3 py-2 text-sm"
+              name="active"
+              className="w-full border px-3 py-2 text-sm rounded"
+              value={form.active ? "true" : "false"}
+              onChange={handleChange}
             >
               <option value="true">Activo</option>
               <option value="false">Inactivo</option>
             </select>
           </div>
 
-          {/* Costo automático (disabled) */}
+          {/* Costo calculado */}
           <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              Costo calculado (automático)
-            </label>
-            <Input name="costo" value={form.costo.toFixed(2)} disabled />
+            <label className="block text-sm mb-1">Costo (automático)</label>
+            <Input value={calcularCosto().toFixed(2)} disabled />
           </div>
 
           {/* Ingredientes */}
           <div className="space-y-2">
-            <label className="block text-sm text-gray-600">
-              Agregar ingredientes
-            </label>
+            <label className="block text-sm">Ingredientes</label>
             <div className="flex gap-2">
               <select
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className="flex-1 border rounded px-2 py-1 text-sm"
                 value={selectedIngredientId}
-                onChange={(e) =>
-                  setSelectedIngredientId(Number(e.target.value))
-                }
+                onChange={(e) => setSelectedIngredientId(parseInt(e.target.value))}
               >
-                <option value="">Seleccionar</option>
-                {ingredientesDisponibles.map((ing) => (
-                  <option key={ing.id} value={ing.id}>
-                    {ing.nombre} ({ing.unidad})
+                <option value={0}>Seleccionar</option>
+                {ingredientsDisponibles.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.name} ({i.unit})
                   </option>
                 ))}
               </select>
               <Input
                 type="number"
-                min="0"
-                className="w-28"
+                min={1}
                 placeholder="Cantidad"
                 value={selectedCantidad}
                 onChange={(e) => setSelectedCantidad(Number(e.target.value))}
+                className="w-24"
               />
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  const ing = ingredientesDisponibles.find(
-                    (i) => i.id === selectedIngredientId
-                  );
-                  if (ing && selectedCantidad > 0) {
-                    setForm((prev) => ({
-                      ...prev,
-                      ingredientes: [
-                        ...prev.ingredientes,
-                        {
-                          id: ing.id,
-                          nombre: ing.nombre,
-                          unidad: ing.unidad,
-                          cantidad: selectedCantidad,
-                          precioUnidad: ing.precioUnidad,
-                        },
-                      ],
-                    }));
-                    setSelectedCantidad(0);
-                    setSelectedIngredientId(0);
-                  }
-                }}
-              >
+              <Button variant="secondary" onClick={handleAddIngredient}>
                 Agregar
               </Button>
             </div>
 
-            <ul className="text-sm mt-2 space-y-1">
-              {form.ingredientes.map((ing, i) => (
+            <ul className="text-sm space-y-1">
+              {form.ingredients?.map((pi, index) => (
                 <li
-                  key={i}
-                  className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded"
+                  key={pi.id}
+                  className="flex justify-between items-center bg-gray-100 px-3 py-1 rounded"
                 >
                   <span>
-                    {ing.nombre} — {ing.cantidad} {ing.unidad}
+                    {pi.ingredient.name} — {pi.quantity} {pi.ingredient.unit}
                   </span>
                   <button
-                    className="text-sm text-red-500 hover:underline"
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        ingredientes: prev.ingredientes.filter(
-                          (_, idx) => idx !== i
-                        ),
-                      }))
-                    }
+                    className="text-xs text-red-600 hover:underline"
+                    onClick={() => handleRemoveIngredient(index)}
                   >
                     Quitar
                   </button>
@@ -287,15 +243,13 @@ export function ProductModal({ open, onClose, onSave, product }: Props) {
             </ul>
           </div>
 
-          <Button className="w-full" onClick={handleSubmit}>
-            Guardar
+          <Button className="w-full mt-4" onClick={handleSubmit}>
+            Guardar producto
           </Button>
         </div>
       </DialogContent>
-      <CategoryModal
-        open={modalCategoriaOpen}
-        onClose={() => setModalCategoriaOpen(false)}
-      />
+
+      <CategoryModal open={modalCategoriaOpen} onClose={() => setModalCategoriaOpen(false)} />
     </Dialog>
   );
 }

@@ -1,5 +1,3 @@
-// /src/components/categories/CategoryForm.tsx
-
 "use client";
 
 import { useState } from "react";

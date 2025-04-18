@@ -13,13 +13,14 @@ export function Sidebar() {
     { name: "Home", href: "/" },
     { name: "Products", href: "/products" },
     { name: "Sales", href: "/sales" },
+    { name: "Orders", href: "/orders" },
     { name: "Dashboard", href: "/dashboard" },
     { name: "Cash Register", href: "/cash" },
     { name: "Cash History", href: "/cash/history" },
     { name: "Inventory", href: "/inventory" },
     { name: "Users", href: "/users" },
     { name: "Purchases", href: "/purchases" },
-
+    { name: "Settings", href: "/settings" },
   ]
 
   return (

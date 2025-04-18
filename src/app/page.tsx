@@ -1,6 +1,7 @@
 "use client";
 
-import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
+// import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
@@ -16,9 +17,37 @@ import {
   LineChart
 } from "recharts";
 import { UserMenu } from "@/components/ui/UserMenu";
+import { Bell } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/Dialog";
+import { NotificationPanel } from "@/components/notifications/NotificationPanel";
+import { Notification } from "@/components/notifications/NotificationItem";
 
 export default function Home() {
-  // const { user } = useAuth();
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const notifications: Notification[] = [
+    {
+      id: "low-stock",
+      type: "warning",
+      icon: "📦",
+      message: "2 productos tienen stock bajo",
+      link: "/inventory",
+      date: new Date().toISOString(),
+    },
+    {
+      id: "caja",
+      type: "info",
+      icon: "🧾",
+      message: "Aún no cerraste la caja de hoy",
+      link: "/cash",
+      date: new Date().toISOString(),
+    },
+  ];
 
   const ultimos7Dias = [
     { dia: "Lun", monto: 3200 , ventas: 32 },
@@ -54,6 +83,7 @@ export default function Home() {
     { nombre: "Coca-Cola 1.5L 🥤", cantidad: 2 },
     { nombre: "Empanada Veggie 🥟", cantidad: 4 },
   ];
+
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8">
       {/* Header */}
@@ -62,10 +92,22 @@ export default function Home() {
           Inicio
         </h1>
         <div className="flex items-center gap-3">
+          <Button size="icon" variant="ghost" onClick={() => setModalOpen(true)}>
+            <Bell className="w-5 h-5" />
+          </Button>
           <UserMenu />
           <div className="w-8 h-8 rounded-full bg-gray-300" />
         </div>
       </div>
+
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Notificaciones</DialogTitle>
+          </DialogHeader>
+          <NotificationPanel notifications={notifications} />
+        </DialogContent>
+      </Dialog>
 
       {/* Search bar */}
       <Input placeholder="🔍 Buscar..." className="w-full max-w-md" />

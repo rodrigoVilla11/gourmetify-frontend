@@ -1,4 +1,4 @@
-// components/ui/Card.tsx
+"use client"
 import { cn } from "@/lib/utils"
 import { ReactNode } from "react"
 

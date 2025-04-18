@@ -16,7 +16,9 @@ export default function SalesHistoryPage() {
   const filterShift = params.get("shift");
   const filterResp = params.get("responsible");
 
-  const [selectedSale, setSelectedSale] = useState<typeof salesHistory[0] | null>(null);
+  const [selectedSale, setSelectedSale] = useState<
+    (typeof salesHistory)[0] | null
+  >(null);
 
   const filteredSales = useMemo(() => {
     return salesHistory.filter((s) => {
@@ -44,22 +46,28 @@ export default function SalesHistoryPage() {
       />
 
       {filteredSales.length === 0 ? (
-        <p className="text-muted-foreground italic">No hay ventas registradas.</p>
+        <p className="text-muted-foreground italic">
+          No hay ventas registradas.
+        </p>
       ) : (
         <ul className="space-y-3">
           {filteredSales.map((sale) => (
-            <SaleCard key={sale.id} sale={sale} onView={() => setSelectedSale(sale)} />
+            <SaleCard
+              key={sale.id}
+              sale={sale}
+              onView={() => setSelectedSale(sale)}
+            />
           ))}
         </ul>
       )}
 
-      {selectedSale && (
+      {selectedSale ? (
         <TicketModal
           sale={selectedSale}
-          open={!!selectedSale}
+          open={selectedSale !== null}
           onClose={() => setSelectedSale(null)}
         />
-      )}
+      ) : null}
     </main>
   );
 }

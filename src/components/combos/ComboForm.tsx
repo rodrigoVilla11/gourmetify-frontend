@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { products } from "@/data/products";
+import {  CreateComboDto } from "@/types/Combo";
 
 type Props = {
-  onCreate: (combo: any) => void;
+  onCreate: (combo: CreateComboDto) => void;
 };
 
 export function ComboForm({ onCreate }: Props) {
@@ -27,21 +28,23 @@ export function ComboForm({ onCreate }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    const combo = {
-      id: Math.floor(Math.random() * 10000),
+  
+    const combo: CreateComboDto = {
       name: name.trim(),
       price: Number(price),
-      image: image.trim(),
+      cost: 0, // se calcula automáticamente en backend
+      categoryId: 1, // si querés seleccionar, agregá un select
+      active: true,
       items: selectedItems,
     };
-
+  
     onCreate(combo);
     setName("");
     setPrice("");
     setImage("");
     setSelectedItems([]);
   };
+  
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-xl">

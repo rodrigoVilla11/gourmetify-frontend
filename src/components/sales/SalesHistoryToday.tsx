@@ -1,4 +1,3 @@
-// components/sales/SalesHistoryToday.tsx
 "use client";
 import { Sale } from "@/data/salesHistory";
 

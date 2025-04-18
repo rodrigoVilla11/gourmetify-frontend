@@ -1,121 +1,61 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import {
-  ProductFormData,
-  ProductModal,
-} from "../../components/products/ProductModal";
-import IngredientsPage from "./ingredients/page";
-import { ProductDetailsModal } from "../../components/products/ProductsDetailsModal";
+  useGetProductsQuery,
+  useCreateProductMutation,
+  useUpdateProductMutation,
+} from "@/redux/services/productsApi";
+import { useGetCategoriesQuery } from "@/redux/services/categoriesApi";
+import {
+  useGetCombosQuery,
+  useCreateComboMutation,
+  useUpdateComboMutation,
+} from "@/redux/services/combosApi";
+import { ProductDetailsModal } from "@/components/products/ProductsDetailsModal";
+import { ProductModal } from "@/components/products/ProductModal";
 import { CategoryModal } from "@/components/products/CategoryModal";
-import { Combo, ComboModal } from "@/components/products/ComboModal";
+import { ComboModal } from "@/components/products/ComboModal";
+import IngredientsPage from "./ingredients/page";
+import { Product } from "@/types/Product";
+import { Combo } from "@/types/Combo";
+import { useGetIngredientsQuery } from "@/redux/services/ingredientsApi";
 
 export default function ProductsPage() {
   const [activeTab, setActiveTab] = useState<"productos" | "combos">(
     "productos"
   );
-  const [showIngredients, setShowIngredients] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalComboOpen, setModalComboOpen] = useState(false);
   const [modalCategoriaOpen, setModalCategoriaOpen] = useState(false);
-  const [editProduct, setEditProduct] = useState<ProductFormData | null>(null);
-  const [detailsProduct, setDetailsProduct] = useState<ProductFormData | null>(
-    null
-  );
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [detailsProduct, setDetailsProduct] = useState<Product | null>(null);
+  const [editCombo, setEditCombo] = useState<Combo | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showIngredients, setShowIngredients] = useState(false);
   const [search, setSearch] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("Todas");
   const [filtroEstado, setFiltroEstado] = useState("Todos");
 
-  const [modalComboOpen, setModalComboOpen] = useState(false);
-  const [editCombo, setEditCombo] = useState<Combo | null>(null);
-  const [combos, setCombos] = useState<Combo[]>([]);
+  const { data: productos = [] } = useGetProductsQuery();
+  const { data: categorias = [] } = useGetCategoriesQuery();
+  const { data: combos = [] } = useGetCombosQuery();
+  const { data: ingredientes = [] } = useGetIngredientsQuery();
 
-  // función para abrir modal de nuevo combo
-  const abrirNuevoCombo = () => {
-    setEditCombo(null);
-    setModalComboOpen(true);
-  };
+  const [createProduct] = useCreateProductMutation();
+  const [updateProduct] = useUpdateProductMutation();
+  const [createCombo] = useCreateComboMutation();
+  const [updateCombo] = useUpdateComboMutation();
 
-  // función para editar combo existente
-  const abrirEditarCombo = (combo: Combo) => {
-    setEditCombo(combo);
-    setModalComboOpen(true);
-  };
-
-  // función para guardar combo (nuevo o editado)
-  const handleSaveCombo = (combo: Combo) => {
-    if (combo.id) {
-      setCombos((prev) => prev.map((c) => (c.id === combo.id ? combo : c)));
-    } else {
-      const nuevoCombo = { ...combo, id: Date.now() };
-      setCombos((prev) => [...prev, nuevoCombo]);
-    }
-  };
-
-  const [productos, setProductos] = useState<ProductFormData[]>([
-    {
-      id: 1,
-      nombre: "Hamburguesa Doble",
-      categoria: "Comida Rápida",
-      precio: 650.0,
-      stock: 132,
-      costo: 0,
-      activo: true,
-      ingredientes: [
-        {
-          id: 1,
-          nombre: "Pan",
-          unidad: "unidad",
-          cantidad: 1,
-          precioUnidad: 50,
-        },
-        {
-          id: 2,
-          nombre: "Carne",
-          unidad: "g",
-          cantidad: 150,
-          precioUnidad: 1.5,
-        },
-        {
-          id: 3,
-          nombre: "Cheddar",
-          unidad: "g",
-          cantidad: 30,
-          precioUnidad: 0.5,
-        },
-        {
-          id: 5,
-          nombre: "Tomate",
-          unidad: "rodaja",
-          cantidad: 2,
-          precioUnidad: 0.75,
-        },
-      ],
-    },
-  ]);
-
-  const calcularCosto = (ingredientes: any[]) => {
-    return ingredientes.reduce(
-      (acc, ing) => acc + ing.precioUnidad * ing.cantidad,
-      0
-    );
-  };
-
-  const handleSave = (data: ProductFormData) => {
-    const updatedData = {
-      ...data,
-      costo: calcularCosto(data.ingredientes || []),
-    };
-
-    if (data.id) {
-      setProductos((prev) =>
-        prev.map((p) => (p.id === data.id ? updatedData : p))
-      );
-    } else {
-      const nuevo = { ...updatedData, id: Date.now() };
-      setProductos((prev) => [...prev, nuevo]);
+  const handleUpdateProduct = async (updated: Product) => {
+    try {
+      await updateProduct({ id: updated.id, data: updated }).unwrap();
+      setShowDetails(false);
+    } catch (error) {
+      console.error("Error al actualizar el producto:", error);
+      // Podés mostrar un toast o alert acá
     }
   };
 
@@ -124,53 +64,52 @@ export default function ProductsPage() {
     setModalOpen(true);
   };
 
-  const abrirDetalles = (product: ProductFormData) => {
+  const abrirEditarCombo = (combo: Combo) => {
+    setEditCombo(combo);
+    setModalComboOpen(true);
+  };
+
+  const abrirNuevoCombo = () => {
+    setEditCombo(null);
+    setModalComboOpen(true);
+  };
+
+  const handleSaveProduct = async (data: Partial<Product>) => {
+    if (data.id) await updateProduct({ id: data.id, data });
+    else await createProduct(data);
+    setModalOpen(false);
+  };
+
+  const handleSaveCombo = async (data: Partial<Combo>) => {
+    if (data.id) await updateCombo({ id: data.id, data });
+    else await createCombo(data);
+    setModalComboOpen(false);
+  };
+
+  const abrirModalEditar = (product: Product) => {
+    setEditProduct(product);
+    setModalOpen(true);
+  };
+
+  const abrirDetalles = (product: Product) => {
     setDetailsProduct(product);
     setShowDetails(true);
   };
 
-  const abrirModalEditar = (product: ProductFormData) => {
-    const recalculated = {
-      ...product,
-      costo: calcularCosto(product.ingredientes || []),
-    };
-    setEditProduct(recalculated);
-    setModalOpen(true);
-  };
-
-  const handleUpdateProduct = (updated: ProductFormData) => {
-    setProductos((prev) =>
-      prev.map((p) => (p.id === updated.id ? updated : p))
-    );
-  };
-
-  const toggleActivo = (id: number) => {
-    setProductos((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, activo: !p.activo } : p))
-    );
-  };
-
-  const categoriasUnicas = Array.from(
-    new Set(productos.map((p) => p.categoria))
-  );
-
-  const productosFiltrados = productos
-    .map((p) => ({
-      ...p,
-      costo: calcularCosto(p.ingredientes || []),
-    }))
-    .filter((p) => {
-      const coincideNombre = p.nombre
+  const productosFiltrados = useMemo(() => {
+    return productos.filter((p) => {
+      const coincideNombre = p.name
         .toLowerCase()
         .includes(search.toLowerCase());
       const coincideCategoria =
-        filtroCategoria === "Todas" || p.categoria === filtroCategoria;
+        filtroCategoria === "Todas" || p.categoryName === filtroCategoria;
       const coincideEstado =
         filtroEstado === "Todos" ||
-        (filtroEstado === "Activos" && p.activo) ||
-        (filtroEstado === "Inactivos" && !p.activo);
+        (filtroEstado === "Activos" && p.active) ||
+        (filtroEstado === "Inactivos" && !p.active);
       return coincideNombre && coincideCategoria && coincideEstado;
     });
+  }, [productos, search, filtroCategoria, filtroEstado]);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
@@ -192,7 +131,6 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Sección Ingredientes */}
       {showIngredients ? (
         <>
           <Button onClick={() => setShowIngredients(false)}>← Volver</Button>
@@ -200,6 +138,7 @@ export default function ProductsPage() {
         </>
       ) : activeTab === "productos" ? (
         <>
+          {/* FILTROS */}
           <div className="flex gap-2 flex-wrap items-center mb-4">
             <Input
               placeholder="🔍 Buscar producto..."
@@ -208,21 +147,21 @@ export default function ProductsPage() {
               className="max-w-sm"
             />
             <select
-              className="border rounded px-3 py-2 text-sm"
               value={filtroCategoria}
               onChange={(e) => setFiltroCategoria(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
             >
               <option value="Todas">Todas las categorías</option>
-              {categoriasUnicas.map((cat, i) => (
-                <option key={i} value={cat}>
-                  {cat}
+              {categorias.map((cat) => (
+                <option key={cat.id} value={cat.name}>
+                  {cat.name}
                 </option>
               ))}
             </select>
             <select
-              className="border rounded px-3 py-2 text-sm"
               value={filtroEstado}
               onChange={(e) => setFiltroEstado(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
             >
               <option value="Todos">Todos</option>
               <option value="Activos">Activos</option>
@@ -242,6 +181,7 @@ export default function ProductsPage() {
             </Button>
           </div>
 
+          {/* TABLA PRODUCTOS */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100">
             <table className="min-w-full text-sm text-left">
               <thead className="bg-gray-50 text-gray-600">
@@ -249,33 +189,32 @@ export default function ProductsPage() {
                   <th className="px-6 py-3">Producto</th>
                   <th className="px-6 py-3">Categoría</th>
                   <th className="px-6 py-3">Costo</th>
-                  <th className="px-6 py-3">Precio Venta</th>
+                  <th className="px-6 py-3">Precio</th>
                   <th className="px-6 py-3">Stock</th>
-                  <th className="px-6 py-3">Activo</th>
+                  <th className="px-6 py-3">Estado</th>
                   <th className="px-6 py-3 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="text-gray-800">
                 {productosFiltrados.map((p) => (
                   <tr key={p.id} className="border-t">
-                    <td className="px-6 py-3">{p.nombre}</td>
-                    <td className="px-6 py-3">{p.categoria}</td>
-                    <td className="px-6 py-3">${p.costo.toFixed(2)}</td>
-                    <td className="px-6 py-3">${p.precio.toFixed(2)}</td>
+                    <td className="px-6 py-3">{p.name}</td>
+                    <td className="px-6 py-3">{p.categoryName}</td>
+                    <td className="px-6 py-3">${p.cost.toFixed(2)}</td>
+                    <td className="px-6 py-3">${p.price.toFixed(2)}</td>
                     <td className="px-6 py-3">{p.stock}</td>
                     <td className="px-6 py-3">
-                      <button
-                        onClick={() => toggleActivo(p.id!)}
-                        className={`text-xs font-medium px-2 py-1 rounded-full transition-colors ${
-                          p.activo
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
+                      <span
+                        className={`text-xs font-medium px-2 py-1 rounded-full ${
+                          p.active
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
                         }`}
                       >
-                        {p.activo ? "Activo" : "Inactivo"}
-                      </button>
+                        {p.active ? "Activo" : "Inactivo"}
+                      </span>
                     </td>
-                    <td className="px-6 py-3 text-right">
+                    <td className="px-6 py-3 text-right space-x-2">
                       <Button
                         size="sm"
                         variant="secondary"
@@ -288,7 +227,7 @@ export default function ProductsPage() {
                         variant="ghost"
                         onClick={() => abrirDetalles(p)}
                       >
-                        Ver detalles
+                        Ver
                       </Button>
                     </td>
                   </tr>
@@ -297,22 +236,23 @@ export default function ProductsPage() {
             </table>
           </div>
 
+          {/* MODALES */}
           <ProductModal
             open={modalOpen}
             onClose={() => setModalOpen(false)}
-            onSave={handleSave}
+            onSave={handleSaveProduct}
             product={editProduct}
+            ingredientsDisponibles={ingredientes} // <--- los ingredientes disponibles
+            categorias={categorias} // <--- las categorías disponibles
           />
-
           {detailsProduct && (
             <ProductDetailsModal
               open={showDetails}
               onClose={() => setShowDetails(false)}
-              product={detailsProduct}
+              product={detailsProduct!}
               onUpdate={handleUpdateProduct}
             />
           )}
-
           <CategoryModal
             open={modalCategoriaOpen}
             onClose={() => setModalCategoriaOpen(false)}
@@ -324,76 +264,55 @@ export default function ProductsPage() {
             <h2 className="text-xl font-semibold">Gestión de combos</h2>
             <Button onClick={abrirNuevoCombo}>+ Nuevo combo</Button>
           </div>
-
-          {combos.length === 0 ? (
-            <div className="mt-4 text-sm text-gray-500">
-              No hay combos creados aún.
-            </div>
-          ) : (
-            <div className="mt-4 bg-white border rounded-xl shadow-sm">
-              <table className="min-w-full text-sm text-left">
-                <thead className="bg-gray-50 text-gray-600">
-                  <tr>
-                    <th className="px-6 py-3">Nombre</th>
-                    <th className="px-6 py-3">Productos</th>
-                    <th className="px-6 py-3">Precio</th>
-                    <th className="px-6 py-3">Estado</th>
-                    <th className="px-6 py-3 text-right">Acciones</th>
+          <div className="mt-4 bg-white border rounded-xl shadow-sm">
+            <table className="min-w-full text-sm text-left">
+              <thead className="bg-gray-50 text-gray-600">
+                <tr>
+                  <th className="px-6 py-3">Nombre</th>
+                  <th className="px-6 py-3">Precio</th>
+                  <th className="px-6 py-3">Estado</th>
+                  <th className="px-6 py-3 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-800">
+                {combos.map((combo) => (
+                  <tr key={combo.id} className="border-t">
+                    <td className="px-6 py-3">{combo.name}</td>
+                    <td className="px-6 py-3">${combo.price.toFixed(2)}</td>
+                    <td className="px-6 py-3">
+                      <span
+                        className={`text-xs font-medium px-2 py-1 rounded-full ${
+                          combo.active
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {combo.active ? "Activo" : "Inactivo"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3 text-right">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => abrirEditarCombo(combo)}
+                      >
+                        Editar
+                      </Button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="text-gray-800">
-                  {combos.map((combo) => (
-                    <tr key={combo.id} className="border-t">
-                      <td className="px-6 py-3">{combo.nombre}</td>
-                      <td className="px-6 py-3">
-                        {combo.productos
-                          .map((p) => `${p.nombre} x${p.cantidad}`)
-                          .join(", ")}
-                      </td>
-                      <td className="px-6 py-3">${combo.precio.toFixed(2)}</td>
-                      <td className="px-6 py-3">
-                        <span
-                          className={`text-xs font-medium px-2 py-1 rounded-full ${
-                            combo.activo
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {combo.activo ? "Activo" : "Inactivo"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-3 text-right">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => abrirEditarCombo(combo)}
-                        >
-                          Editar
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <ComboModal
+            open={modalComboOpen}
+            onClose={() => setModalComboOpen(false)}
+            onSave={handleSaveCombo}
+            productosDisponibles={productos}
+            combo={editCombo} // 👈 ya está
+          />
         </>
       )}
-      <ComboModal
-        open={modalComboOpen}
-        onClose={() => setModalComboOpen(false)}
-        onSave={handleSaveCombo}
-        combo={editCombo}
-        productosDisponibles={productos
-          .filter(
-            (p): p is ProductFormData & { id: number } =>
-              typeof p.id === "number"
-          )
-          .map((p) => ({
-            id: p.id,
-            nombre: p.nombre,
-          }))}
-      />
     </div>
   );
 }

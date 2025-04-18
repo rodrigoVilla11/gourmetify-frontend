@@ -1,4 +1,3 @@
-// components/sales/DiscountForm.tsx
 "use client";
 import React from "react";
 

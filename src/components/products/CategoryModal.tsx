@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Switch } from "@/components/ui/Switch";
-
-export type Category = {
-  id: number;
-  nombre: string;
-  descripcion: string;
-  activo: boolean;
-};
+import {
+  useCreateCategoryMutation,
+  useUpdateCategoryMutation,
+  useGetCategoriesQuery,
+} from "@/redux/services/categoriesApi";
 
 type Props = {
   open: boolean;
@@ -19,39 +22,58 @@ type Props = {
 };
 
 export function CategoryModal({ open, onClose }: Props) {
-  const [categorias, setCategorias] = useState<Category[]>([
-    { id: 1, nombre: "Comida Rápida", descripcion: "Platos listos en pocos minutos", activo: true },
-    { id: 2, nombre: "Bebidas", descripcion: "Gaseosas, jugos, etc.", activo: true },
-  ]);
+  const { data: categorias = [], refetch } = useGetCategoriesQuery();
+  const [createCategory] = useCreateCategoryMutation();
+  const [updateCategory] = useUpdateCategoryMutation();
 
-  const [form, setForm] = useState({ nombre: "", descripcion: "", activo: true });
-  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [form, setForm] = useState({
+    id: 0,
+    name: "",
+    description: "",
+    active: true,
+  });
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (!open) {
-      setForm({ nombre: "", descripcion: "", activo: true });
-      setEditIndex(null);
+      resetForm();
     }
   }, [open]);
 
-  const handleSave = () => {
-    if (editIndex !== null) {
-      const updated = [...categorias];
-      updated[editIndex] = { ...updated[editIndex], ...form };
-      setCategorias(updated);
-    } else {
-      setCategorias((prev) => [
-        ...prev,
-        { id: Date.now(), ...form }
-      ]);
-    }
-    setForm({ nombre: "", descripcion: "", activo: true });
-    setEditIndex(null);
+  const resetForm = () => {
+    setForm({ id: 0, name: "", description: "", active: true });
+    setIsEditing(false);
   };
 
-  const handleEdit = (index: number) => {
-    setForm(categorias[index]);
-    setEditIndex(index);
+  const handleSave = async () => {
+    if (isEditing) {
+      await updateCategory({
+        id: form.id,
+        data: {
+          name: form.name,
+          description: form.description,
+          active: form.active,
+        },
+      });
+    } else {
+      await createCategory({
+        name: form.name,
+        description: form.description,
+        active: form.active,
+      });
+    }
+    await refetch();
+    resetForm();
+  };
+
+  const handleEdit = (cat: any) => {
+    setForm({
+      id: cat.id,
+      name: cat.name,
+      description: cat.description,
+      active: cat.active,
+    });
+    setIsEditing(true);
   };
 
   return (
@@ -66,41 +88,58 @@ export function CategoryModal({ open, onClose }: Props) {
           <div className="space-y-3">
             <Input
               placeholder="Nombre"
-              value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
             <Input
               placeholder="Descripción"
-              value={form.descripcion}
-              onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+              value={form.description}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
             />
             <div className="flex items-center gap-2">
               <Switch
-                checked={form.activo}
-                onCheckedChange={(val) => setForm({ ...form, activo: val })}
+                checked={form.active}
+                onCheckedChange={(val) => setForm({ ...form, active: val })}
               />
-              <span>{form.activo ? "Activo" : "Inactivo"}</span>
+              <span>{form.active ? "Activo" : "Inactivo"}</span>
             </div>
             <Button className="w-full" onClick={handleSave}>
-              {editIndex !== null ? "Guardar cambios" : "Crear categoría"}
+              {isEditing ? "Guardar cambios" : "Crear categoría"}
             </Button>
           </div>
 
           {/* Lista de categorías */}
           <div className="border-t pt-4 space-y-3">
-            <h3 className="text-sm font-semibold text-gray-700">Categorías actuales</h3>
+            <h3 className="text-sm font-semibold text-gray-700">
+              Categorías actuales
+            </h3>
             <ul className="space-y-2 text-sm">
-              {categorias.map((cat, idx) => (
-                <li key={cat.id} className="flex justify-between items-center border rounded px-3 py-2">
+              {categorias.map((cat) => (
+                <li
+                  key={cat.id}
+                  className="flex justify-between items-center border rounded px-3 py-2"
+                >
                   <div>
-                    <p className="font-medium">{cat.nombre}</p>
-                    <p className="text-gray-500 text-xs">{cat.descripcion}</p>
+                    <p className="font-medium">{cat.name}</p>
+                    <p className="text-gray-500 text-xs">{cat.description}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${cat.activo ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                      {cat.activo ? "Activo" : "Inactivo"}
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full ${
+                        cat.active
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {cat.active ? "Activo" : "Inactivo"}
                     </span>
-                    <Button size="sm" variant="outline" onClick={() => handleEdit(idx)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEdit(cat)}
+                    >
                       Editar
                     </Button>
                   </div>
