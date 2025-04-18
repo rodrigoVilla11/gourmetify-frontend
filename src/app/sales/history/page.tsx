@@ -31,10 +31,16 @@ export default function SalesHistoryPage() {
 
   function updateQuery(key: string, value: string) {
     const query = new URLSearchParams(params.toString());
-    value ? query.set(key, value) : query.delete(key);
+  
+    if (value) {
+      query.set(key, value);
+    } else {
+      query.delete(key);
+    }
+  
     router.push(`/sales/history?${query.toString()}`);
   }
-
+  
   return (
     <main className="p-4 sm:p-6 md:p-8 space-y-6">
       <h2 className="text-2xl font-bold tracking-tight">Historial de Ventas</h2>
@@ -61,13 +67,13 @@ export default function SalesHistoryPage() {
         </ul>
       )}
 
-      {selectedSale ? (
+      {selectedSale && (
         <TicketModal
           sale={selectedSale}
           open={selectedSale !== null}
           onClose={() => setSelectedSale(null)}
         />
-      ) : null}
+      )}
     </main>
   );
 }
